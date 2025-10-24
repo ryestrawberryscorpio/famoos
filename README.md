@@ -57,6 +57,9 @@ Roadmap Highlights
 - Expanded default 3D roster plus text-to-rig generator
 - Speech-to-text microphone integration
 - Multi-agent scenes with director controls
+- Dynamic market dashboard with real-time bundle alerts and liquidity spikes
+- Persona modding UI with live preview and slider-based traits
+- Conversation memory journals with telemetry surface
 
 ### Memecoin Intelligence
 
@@ -67,6 +70,8 @@ Roadmap Highlights
 - Alpha feed aggregation across social + on-chain
 - Risk copilot with compliance toggles
 - Narrative pack generator for token launches
+- On-chain action assistant and simulator for safe deployments
+- Analytics API + bot hooks for Discord/Twitch or Telegram relays
 
 ---
 
