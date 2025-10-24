@@ -61,9 +61,6 @@ export function ChatBox({
 
           const ttsData = await ttsResp.json();
 
-          // Start talking animation as soon as we have something to play
-          onTalkingChange(true);
-
           if (ttsData?.url) {
             await playAudio(ttsData.url);
           } else if (ttsData?.audio) {
@@ -109,10 +106,19 @@ export function ChatBox({
           reject(err);
         };
         // Attempt play; may require user gesture (send click qualifies)
-        audio.play().catch((err) => {
-          onTalkingChange(false);
-          reject(err);
-        });
+        const playResult = audio.play();
+        if (playResult !== undefined) {
+          playResult
+            .then(() => {
+              onTalkingChange(true);
+            })
+            .catch((err) => {
+              onTalkingChange(false);
+              reject(err);
+            });
+        } else {
+          onTalkingChange(true);
+        }
       } catch (err) {
         onTalkingChange(false);
         reject(err);
