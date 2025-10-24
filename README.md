@@ -31,6 +31,7 @@ Core Capabilities
 | Telemetry console | Top-right neon console shows status, version, and upcoming boosters |
 | Background studio | Random color, color picker, custom image uploads, default `/public/bg.png` |
 | Mic entry point | Prewired microphone button ready for future voice streaming |
+| Social & on-chain connectors | Placeholder modules for Twitter/X and QuickNode BNB data |
 
 ---
 
@@ -96,6 +97,12 @@ Getting Started
    MURF_VOICE_ID=en-UK-ruby    # optional voice override
    LLM_PROVIDER=openai   # or deepseek
    TTS_PROVIDER=fish      # fish or murf
+   TWITTER_API_KEY=...        # optional: integrate Twitter/X placeholder module
+   TWITTER_API_SECRET=...
+   TWITTER_ACCESS_TOKEN=...
+   TWITTER_ACCESS_SECRET=...
+   QUICKNODE_BNB_URL=...      # optional: integrate QuickNode BNB placeholder module
+   QUICKNODE_BNB_API_KEY=...  # optional, if your QuickNode plan uses keys
    ```
 
 4. Run the dev server:
