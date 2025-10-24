@@ -178,6 +178,8 @@ export function FoxModel({ talking, animationCue, onAnimationCueComplete }: FoxM
         try {
           talkAct.enabled = true;
           talkAct.reset();
+          talkAct.weight = 1;
+          talkAct.time = 0;
           talkAct.play();
           talkAct.paused = false;
           talkMixerRef.current.update(0);
