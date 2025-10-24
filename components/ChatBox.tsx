@@ -7,17 +7,21 @@ export function ChatBox({
   lang,
   onTalkingChange,
   onAnimationCue,
+  onCancelAnimationCue,
 }: {
   lang: "en" | "zh";
   onTalkingChange: (talking: boolean) => void;
   onAnimationCue: (cue: "dance" | "jump") => void;
+  onCancelAnimationCue?: () => void;
 }) {
   const [input, setInput] = useState("");
   const [messages, setMessages] = useState<{ role: "user" | "assistant"; content: string }[]>([]);
   const [loading, setLoading] = useState(false);
   const [showHistory, setShowHistory] = useState(false);
   const audioRef = useRef<HTMLAudioElement | null>(null);
-  const speechUtterRef = useRef<SpeechSynthesisUtterance | null>(null);
+  const [isPlaying, setIsPlaying] = useState(false);
+  const playSessionIdRef = useRef(0);
+  const delayedTalkTimerRef = useRef<number | null>(null);
 
   const stopPlayback = useCallback(() => {
     if (audioRef.current) {
@@ -25,11 +29,12 @@ export function ChatBox({
       audioRef.current.src = "";
       audioRef.current = null;
     }
-    if (typeof window !== "undefined") {
-      window.speechSynthesis?.cancel();
+    if (delayedTalkTimerRef.current) {
+      clearTimeout(delayedTalkTimerRef.current);
+      delayedTalkTimerRef.current = null;
     }
-    speechUtterRef.current = null;
     onTalkingChange(false);
+    setIsPlaying(false);
   }, [onTalkingChange]);
 
   useEffect(() => {
@@ -41,8 +46,10 @@ export function ChatBox({
   async function handleSend() {
     if (!input.trim()) return;
 
-    // Stop any existing playback or speech
+    // Stop any existing playback or speech first
     stopPlayback();
+    // Then cancel any active one-shot emotion (dance/jump)
+    onCancelAnimationCue?.();
 
     const userMsg = { role: "user" as const, content: input.trim() };
     setMessages((m) => [...m, userMsg]);
@@ -64,7 +71,7 @@ export function ChatBox({
         setMessages((m) => [...m, { role: "assistant", content: text }]);
       }
 
-      // 2) TTS via Fish Audio with Web Speech fallback
+      // 2) TTS via /api/tts (Murf only)
       if (text) {
         try {
           const ttsResp = await fetch("/api/tts", {
@@ -92,12 +99,10 @@ export function ChatBox({
               URL.revokeObjectURL(url);
             }
           } else {
-            // fallback to Web Speech if structure unknown
-            await speakWithWebSpeech(text);
+            // Unrecognized structure; do nothing
           }
         } catch (e) {
-          // Fallback: Web Speech API
-          await speakWithWebSpeech(text);
+          // Ignore if TTS fails
         }
       }
     } catch (e) {
@@ -110,60 +115,55 @@ export function ChatBox({
   function playAudio(url: string) {
     return new Promise<void>((resolve, reject) => {
       try {
+        const sessionId = ++playSessionIdRef.current;
         const audio = new Audio();
         audioRef.current = audio;
         audio.src = url;
+        let started = false;
+        const handlePlay = () => {
+          if (!started) {
+            started = true;
+            setIsPlaying(true);
+            // Delay talk animation by ~0.5s to sync better with audio onset
+            if (delayedTalkTimerRef.current) clearTimeout(delayedTalkTimerRef.current);
+            delayedTalkTimerRef.current = window.setTimeout(() => {
+              if (playSessionIdRef.current === sessionId && !audio.paused) {
+                onTalkingChange(true);
+              }
+            }, 500);
+          }
+        };
+        audio.onplay = handlePlay;
+        audio.onplaying = handlePlay;
+        audio.ontimeupdate = () => {
+          if (!started && audio.currentTime > 0.1) {
+            handlePlay();
+          }
+        };
         audio.onended = () => {
           onTalkingChange(false);
+          setIsPlaying(false);
           resolve();
         };
         audio.onerror = (err) => {
           onTalkingChange(false);
+          setIsPlaying(false);
           reject(err);
         };
         // Attempt play; may require user gesture (send click qualifies)
         const playResult = audio.play();
         if (playResult !== undefined) {
-          playResult
-            .then(() => {
-              onTalkingChange(true);
-            })
-            .catch((err) => {
-              onTalkingChange(false);
-              reject(err);
-            });
-        } else {
-          onTalkingChange(true);
+          playResult.catch((err) => {
+            onTalkingChange(false);
+            setIsPlaying(false);
+            reject(err);
+          });
         }
       } catch (err) {
         onTalkingChange(false);
+        setIsPlaying(false);
         reject(err);
       }
-    });
-  }
-
-  function speakWithWebSpeech(text: string) {
-    return new Promise<void>((resolve) => {
-      const synth = typeof window !== "undefined" ? window.speechSynthesis : undefined;
-      if (!synth) {
-        onTalkingChange(false);
-        return resolve();
-      }
-      onTalkingChange(true);
-      const utter = new SpeechSynthesisUtterance(text);
-      speechUtterRef.current = utter;
-      utter.lang = lang === "zh" ? "zh-CN" : "en-US";
-      utter.onend = () => {
-        onTalkingChange(false);
-        speechUtterRef.current = null;
-        resolve();
-      };
-      utter.onerror = () => {
-        onTalkingChange(false);
-        speechUtterRef.current = null;
-        resolve();
-      };
-      synth.speak(utter);
     });
   }
 
@@ -225,11 +225,15 @@ export function ChatBox({
               className="flex-1 bg-black/30 border border-white/20 rounded px-3 py-3 outline-none"
             />
             <button
-              onClick={handleSend}
-              disabled={loading}
+              onClick={isPlaying ? stopPlayback : handleSend}
+              disabled={loading && !isPlaying}
               className="glass-btn px-4 py-3 disabled:opacity-50"
             >
-              {loading ? (lang === "zh" ? "发送中…" : "Sending…") : (lang === "zh" ? "发送" : "Send")}
+              {isPlaying
+                ? (lang === "zh" ? "取消" : "Cancel")
+                : loading
+                ? (lang === "zh" ? "发送中…" : "Sending…")
+                : (lang === "zh" ? "发送" : "Send")}
             </button>
           </div>
           {showHistory && messages.length > 0 && (

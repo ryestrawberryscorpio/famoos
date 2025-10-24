@@ -30,7 +30,8 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const provider = (process.env.TTS_PROVIDER || "fish").toLowerCase();
+    // Force Murf provider per request; remove Fish fallback
+    const provider = "murf";
 
     if (provider === "murf") {
       const murfKey = process.env.MURF_API_KEY;
@@ -99,65 +100,6 @@ export async function POST(req: NextRequest) {
         { status: 200, headers: { "Content-Type": "application/json" } },
       );
     }
-
-    const apiKey = process.env.FISH_AUDIO_API_KEY;
-    if (!apiKey) {
-      return new Response(
-        JSON.stringify({ error: "Missing FISH_AUDIO_API_KEY" }),
-        { status: 500, headers: { "Content-Type": "application/json" } },
-      );
-    }
-
-    const url = "https://api.fish.audio/v1/tts";
-    // Start with a minimal payload to avoid upstream validation issues;
-    // add optional fields only if provided.
-    const payload: Record<string, unknown> = { text };
-    if (format) payload.format = format;
-    if (latency) payload.latency = latency;
-    if (normalize !== undefined) payload.normalize = normalize;
-    if (temperature !== undefined) payload.temperature = temperature;
-    if (top_p !== undefined) payload.top_p = top_p;
-    if (Array.isArray(references) && references.length > 0) payload.references = references;
-    if (reference_id) payload.reference_id = reference_id;
-    if (prosody) payload.prosody = prosody;
-    if (chunk_length) payload.chunk_length = chunk_length;
-    if (sample_rate) payload.sample_rate = sample_rate;
-    if (mp3_bitrate) payload.mp3_bitrate = mp3_bitrate;
-    if (opus_bitrate) payload.opus_bitrate = opus_bitrate;
-
-    const upstream = await fetch(url, {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${apiKey}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify(payload),
-    });
-
-    if (!upstream.ok) {
-      const errText = await upstream.text();
-      return new Response(
-        JSON.stringify({ error: `Fish Audio error: ${upstream.status} ${errText}` }),
-        { status: 500, headers: { "Content-Type": "application/json" } },
-      );
-    }
-
-    // The Fish API returns JSON (per user’s snippet). Normalize it.
-    const data = await upstream.json();
-
-    // Best-effort normalization to one of: url | audio (base64) | raw
-    const urlOrAudio = {
-      url: (data?.url || data?.audio_url || data?.data?.url) ?? undefined,
-      audio: (data?.audio || data?.data?.audio) ?? undefined,
-      contentType: data?.contentType || data?.mime || "audio/mpeg",
-      raw: data,
-      provider: "fish",
-    };
-
-    return new Response(JSON.stringify(urlOrAudio), {
-      status: 200,
-      headers: { "Content-Type": "application/json" },
-    });
   } catch (e: any) {
     return new Response(JSON.stringify({ error: e?.message || "Unknown" }), {
       status: 500,

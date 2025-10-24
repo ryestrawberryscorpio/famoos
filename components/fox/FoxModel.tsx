@@ -176,12 +176,14 @@ export function FoxModel({ talking, animationCue, onAnimationCueComplete }: FoxM
       // Prepare talk before fade in
       if (talkAct && talkMixerRef.current) {
         try {
+          talkAct.stop();
           talkAct.enabled = true;
           talkAct.reset();
           talkAct.weight = 1;
           talkAct.time = 0;
           talkAct.play();
           talkAct.paused = false;
+          talkAct.timeScale = 1;
           talkMixerRef.current.update(0);
           talkAct.time = 0.016;
           talkMixerRef.current.update(0.016);
@@ -245,7 +247,7 @@ export function FoxModel({ talking, animationCue, onAnimationCueComplete }: FoxM
       };
       fadeRaf.current = requestAnimationFrame(step);
     }
-  }, [talking, animationCue, alphaIdle, alphaTalk, alphaDance, alphaJump]);
+  }, [talking, animationCue]);
 
   // Handle one-shot cues such as dance or jump
   useEffect(() => {
@@ -316,16 +318,7 @@ export function FoxModel({ talking, animationCue, onAnimationCueComplete }: FoxM
     };
   }, [animationCue, onAnimationCueComplete]);
 
-  useEffect(() => {
-    if (!animationCue && talking && talkActionRef.current) {
-      const action = talkActionRef.current;
-      action.enabled = true;
-      action.reset();
-      action.paused = false;
-      action.timeScale = 1;
-      action.play();
-    }
-  }, [talking, animationCue]);
+  // Talk action is started in the main toggle effect; avoid double-resets here
 
   // Apply alpha to materials
   useEffect(() => {

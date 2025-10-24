@@ -68,6 +68,10 @@ export default function Home() {
     setAnimationCue(null);
   };
 
+  const handleCancelAnimation = () => {
+    setAnimationCue(null);
+  };
+
   return (
     <div className="relative min-h-screen w-full">
       {/* 3D Scene */}
@@ -92,7 +96,7 @@ export default function Home() {
         onResetDefault={handleResetBackground}
         currentColor={customColor}
       />
-      <ChatBox lang={lang} onTalkingChange={setTalking} onAnimationCue={handleAnimationCue} />
+      <ChatBox lang={lang} onTalkingChange={setTalking} onAnimationCue={handleAnimationCue} onCancelAnimationCue={handleCancelAnimation} />
       <AgentStatus />
 
       {/* Branding */}
