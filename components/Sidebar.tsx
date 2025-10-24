@@ -108,7 +108,7 @@ export function Sidebar({
       </div>
 
       <a
-        href="https://x.com/"
+        href="https://x.com/Famo_OS"
         target="_blank"
         rel="noreferrer"
         className="glass-btn flex h-12 w-12 items-center justify-center"
@@ -118,7 +118,7 @@ export function Sidebar({
         <BsTwitterX className="h-5 w-5" />
       </a>
       <a
-        href="https://github.com/"
+        href="https://github.com/ryestrawberryscorpio/famoos"
         target="_blank"
         rel="noreferrer"
         className="glass-btn flex h-12 w-12 items-center justify-center"
@@ -128,7 +128,7 @@ export function Sidebar({
         <FaGithubAlt className="h-5 w-5" />
       </a>
       <a
-        href="https://twitch.tv/"
+        href="https://www.twitch.tv/osfamo"
         target="_blank"
         rel="noreferrer"
         className="glass-btn flex h-12 w-12 items-center justify-center"
