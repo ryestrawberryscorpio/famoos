@@ -314,6 +314,17 @@ export function FoxModel({ talking, animationCue, onAnimationCueComplete }: FoxM
     };
   }, [animationCue, onAnimationCueComplete]);
 
+  useEffect(() => {
+    if (!animationCue && talking && talkActionRef.current) {
+      const action = talkActionRef.current;
+      action.enabled = true;
+      action.reset();
+      action.paused = false;
+      action.timeScale = 1;
+      action.play();
+    }
+  }, [talking, animationCue]);
+
   // Apply alpha to materials
   useEffect(() => {
     const setOpacity = (root: THREE.Object3D | null, val: number) => {
