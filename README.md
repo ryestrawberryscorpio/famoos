@@ -116,6 +116,7 @@ Contribution Playbook
 - Extend `config/persona.xml` with alternate personalities.
 - Integrate real-time market data or ML models into telemetry.
 - Share forks, demo clips, or companion lore with the community.
+- Read the full [Open Source Playbook](docs/OPEN_SOURCE.md) for contribution philosophy and expectations.
 
 ---
 
