@@ -124,7 +124,7 @@ export function ChatBox({
           if (!started) {
             started = true;
             setIsPlaying(true);
-            // Delay talk animation by ~0.5s to sync better with audio onset
+            // Start talk slightly later to better sync perceived audio onset
             if (delayedTalkTimerRef.current) clearTimeout(delayedTalkTimerRef.current);
             delayedTalkTimerRef.current = window.setTimeout(() => {
               if (playSessionIdRef.current === sessionId && !audio.paused) {
@@ -136,9 +136,7 @@ export function ChatBox({
         audio.onplay = handlePlay;
         audio.onplaying = handlePlay;
         audio.ontimeupdate = () => {
-          if (!started && audio.currentTime > 0.1) {
-            handlePlay();
-          }
+          if (!started && audio.currentTime > 0.1) handlePlay();
         };
         audio.onended = () => {
           onTalkingChange(false);

@@ -16,6 +16,8 @@ try {
   }
 } catch {}
 
+type ChatRole = "system" | "user" | "assistant";
+
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
@@ -69,13 +71,22 @@ export async function POST(req: NextRequest) {
         ? "请始终使用简体中文回答。"
         : "Always respond in clear, natural English.";
 
-    const baseMessages: { role: "system" | "user" | "assistant"; content: string }[] = [
+    // Ensure user-provided messages conform to the expected role union
+    const sanitizedMessages: { role: ChatRole; content: string }[] = Array.isArray(messages)
+      ? messages.map((m: any) => {
+          const role: ChatRole = m?.role === "system" || m?.role === "user" || m?.role === "assistant" ? m.role : "user";
+          const content: string = typeof m?.content === "string" ? m.content : String(m?.content ?? "");
+          return { role, content };
+        })
+      : [];
+
+    const baseMessages: { role: ChatRole; content: string }[] = [
       ...(personaContent
         ? [{ role: "system" as const, content: `Personality definition XML follows. Obey strictly.\n${personaContent}` }]
         : []),
-      { role: "system", content: langSystem },
-      ...(system ? [{ role: "system", content: system }] : []),
-      ...messages,
+      { role: "system" as const, content: langSystem },
+      ...(system ? [{ role: "system" as const, content: system }] : []),
+      ...sanitizedMessages,
     ];
 
     let payload: any;
