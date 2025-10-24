@@ -140,6 +140,34 @@ export function FoxModel({ talking, animationCue, onAnimationCueComplete }: FoxM
     // cancel any in flight fade
     if (fadeRaf.current) cancelAnimationFrame(fadeRaf.current);
 
+    if (!talking) {
+      if (talkAct) {
+        talkAct.stop();
+        talkAct.enabled = false;
+        talkAct.paused = true;
+      }
+      if (danceActionRef.current) {
+        danceActionRef.current.stop();
+        danceActionRef.current.enabled = false;
+        danceActionRef.current.paused = true;
+      }
+      if (jumpActionRef.current) {
+        jumpActionRef.current.stop();
+        jumpActionRef.current.enabled = false;
+        jumpActionRef.current.paused = true;
+      }
+      if (alphaTalk !== 0) setAlphaTalk(0);
+      if (alphaDance !== 0) setAlphaDance(0);
+      if (alphaJump !== 0) setAlphaJump(0);
+      if (alphaIdle !== 1) setAlphaIdle(1);
+      if (idleAct) {
+        idleAct.enabled = true;
+        idleAct.paused = false;
+        idleAct.play();
+      }
+      return;
+    }
+
     if (talking) {
       setAlphaDance(0);
       setAlphaJump(0);
@@ -215,7 +243,7 @@ export function FoxModel({ talking, animationCue, onAnimationCueComplete }: FoxM
       };
       fadeRaf.current = requestAnimationFrame(step);
     }
-  }, [talking, animationCue, alphaIdle, alphaTalk]);
+  }, [talking, animationCue, alphaIdle, alphaTalk, alphaDance, alphaJump]);
 
   // Handle one-shot cues such as dance or jump
   useEffect(() => {
@@ -298,7 +326,7 @@ export function FoxModel({ talking, animationCue, onAnimationCueComplete }: FoxM
             if (!m) continue;
             m.transparent = true;
             m.opacity = val;
-            m.depthWrite = val >= 1; // reduce sorting artifacts during fade
+            m.depthWrite = val >= 0.99; // reduce sorting artifacts during fade
             m.needsUpdate = true;
           }
         }
