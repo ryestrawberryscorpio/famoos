@@ -32,6 +32,7 @@ Core Capabilities
 | Background studio | Random color, color picker, custom image uploads, default `/public/bg.png` |
 | Mic entry point | Prewired microphone button ready for future voice streaming |
 | Social & on-chain connectors | Placeholder modules for Twitter/X and QuickNode BNB data |
+| Emotion cues | Trigger one-time dance or jump animations directly from chat |
 
 ---
 

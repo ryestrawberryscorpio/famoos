@@ -11,6 +11,7 @@ export default function Home() {
   const [lang, setLang] = useState<"en" | "zh">("en");
   const [customColor, setCustomColor] = useState<string | undefined>(undefined);
   const [backgroundImageUrl, setBackgroundImageUrl] = useState<string | undefined>('/bg.png');
+  const [animationCue, setAnimationCue] = useState<"dance" | "jump" | null>(null);
   const objectUrlRef = useRef<string | null>(null);
 
   useEffect(() => {
@@ -59,11 +60,26 @@ export default function Home() {
     setCustomColor(undefined);
   };
 
+  const handleAnimationCue = (cue: "dance" | "jump") => {
+    setAnimationCue(cue);
+  };
+
+  const handleAnimationComplete = () => {
+    setAnimationCue(null);
+  };
+
   return (
     <div className="relative min-h-screen w-full">
       {/* 3D Scene */}
       <div className="absolute inset-0">
-        <ThreeScene talking={talking} bg="dark" customColor={customColor} backgroundImageUrl={backgroundImageUrl} />
+        <ThreeScene
+          talking={talking}
+          bg="dark"
+          customColor={customColor}
+          backgroundImageUrl={backgroundImageUrl}
+          animationCue={animationCue}
+          onAnimationCueComplete={handleAnimationComplete}
+        />
       </div>
 
       {/* Overlays */}
@@ -76,7 +92,7 @@ export default function Home() {
         onResetDefault={handleResetBackground}
         currentColor={customColor}
       />
-      <ChatBox lang={lang} onTalkingChange={setTalking} />
+      <ChatBox lang={lang} onTalkingChange={setTalking} onAnimationCue={handleAnimationCue} />
       <AgentStatus />
 
       {/* Branding */}

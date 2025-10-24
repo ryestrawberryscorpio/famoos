@@ -1,33 +1,49 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { FaMicrophone } from "react-icons/fa";
 
 export function ChatBox({
   lang,
   onTalkingChange,
+  onAnimationCue,
 }: {
   lang: "en" | "zh";
   onTalkingChange: (talking: boolean) => void;
+  onAnimationCue: (cue: "dance" | "jump") => void;
 }) {
   const [input, setInput] = useState("");
   const [messages, setMessages] = useState<{ role: "user" | "assistant"; content: string }[]>([]);
   const [loading, setLoading] = useState(false);
   const [showHistory, setShowHistory] = useState(false);
   const audioRef = useRef<HTMLAudioElement | null>(null);
+  const speechUtterRef = useRef<SpeechSynthesisUtterance | null>(null);
+
+  const stopPlayback = useCallback(() => {
+    if (audioRef.current) {
+      audioRef.current.pause();
+      audioRef.current.src = "";
+      audioRef.current = null;
+    }
+    if (typeof window !== "undefined") {
+      window.speechSynthesis?.cancel();
+    }
+    speechUtterRef.current = null;
+    onTalkingChange(false);
+  }, [onTalkingChange]);
 
   useEffect(() => {
     return () => {
-      if (audioRef.current) {
-        audioRef.current.pause();
-        audioRef.current.src = "";
-        audioRef.current = null;
-      }
+      stopPlayback();
     };
-  }, []);
+  }, [stopPlayback]);
 
   async function handleSend() {
     if (!input.trim()) return;
+
+    // Stop any existing playback or speech
+    stopPlayback();
+
     const userMsg = { role: "user" as const, content: input.trim() };
     setMessages((m) => [...m, userMsg]);
     setInput("");
@@ -135,13 +151,16 @@ export function ChatBox({
       }
       onTalkingChange(true);
       const utter = new SpeechSynthesisUtterance(text);
+      speechUtterRef.current = utter;
       utter.lang = lang === "zh" ? "zh-CN" : "en-US";
       utter.onend = () => {
         onTalkingChange(false);
+        speechUtterRef.current = null;
         resolve();
       };
       utter.onerror = () => {
         onTalkingChange(false);
+        speechUtterRef.current = null;
         resolve();
       };
       synth.speak(utter);
@@ -172,6 +191,26 @@ export function ChatBox({
               onClick={() => console.log("Microphone feature coming soon")}
             >
               <FaMicrophone className="h-4 w-4" />
+            </button>
+            <button
+              type="button"
+              className="glass-btn flex h-12 w-12 items-center justify-center text-xs font-semibold"
+              onClick={() => {
+                stopPlayback();
+                onAnimationCue("dance");
+              }}
+            >
+              {lang === "zh" ? "舞" : "Dance"}
+            </button>
+            <button
+              type="button"
+              className="glass-btn flex h-12 w-12 items-center justify-center text-xs font-semibold"
+              onClick={() => {
+                stopPlayback();
+                onAnimationCue("jump");
+              }}
+            >
+              {lang === "zh" ? "跳" : "Jump"}
             </button>
             <input
               value={input}

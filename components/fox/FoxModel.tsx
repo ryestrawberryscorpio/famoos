@@ -2,25 +2,43 @@
 
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { useGLTF } from "@react-three/drei";
+import { GLTF } from "three-stdlib";
 import * as THREE from "three";
 
-export function FoxModel({ talking }: { talking: boolean }) {
+interface FoxModelProps {
+  talking: boolean;
+  animationCue?: "dance" | "jump" | null;
+  onAnimationCueComplete?: () => void;
+}
+
+export function FoxModel({ talking, animationCue, onAnimationCueComplete }: FoxModelProps) {
   const desiredHeight = 1.4; // target character height in world units
-  const idleGltf: any = useGLTF("/idle.glb");
-  const talkGltf: any = useGLTF("/talk.glb");
+  const idleGltf = useGLTF("/idle.glb") as GLTF;
+  const talkGltf = useGLTF("/talk.glb") as GLTF;
+  const danceGltf = useGLTF("/dance.glb") as GLTF;
+  const jumpGltf = useGLTF("/jump.glb") as GLTF;
   const idleScene = idleGltf?.scene as THREE.Object3D | undefined;
   const talkScene = talkGltf?.scene as THREE.Object3D | undefined;
+  const danceScene = danceGltf?.scene as THREE.Object3D | undefined;
+  const jumpScene = jumpGltf?.scene as THREE.Object3D | undefined;
 
   const idleGroupRef = useRef<THREE.Group>(null);
   const talkGroupRef = useRef<THREE.Group>(null);
+  const danceGroupRef = useRef<THREE.Group>(null);
+  const jumpGroupRef = useRef<THREE.Group>(null);
   const idleMixerRef = useRef<THREE.AnimationMixer | null>(null);
   const talkMixerRef = useRef<THREE.AnimationMixer | null>(null);
+  const danceMixerRef = useRef<THREE.AnimationMixer | null>(null);
+  const jumpMixerRef = useRef<THREE.AnimationMixer | null>(null);
   const idleActionRef = useRef<THREE.AnimationAction | null>(null);
   const talkActionRef = useRef<THREE.AnimationAction | null>(null);
+  const danceActionRef = useRef<THREE.AnimationAction | null>(null);
+  const jumpActionRef = useRef<THREE.AnimationAction | null>(null);
   const [ready, setReady] = useState(false);
-  const [active, setActive] = useState<"idle" | "talk">("idle");
   const [alphaIdle, setAlphaIdle] = useState(1);
   const [alphaTalk, setAlphaTalk] = useState(0);
+  const [alphaDance, setAlphaDance] = useState(0);
+  const [alphaJump, setAlphaJump] = useState(0);
   const blendDuration = 0.4; // seconds
   const fadeRaf = useRef<number | null>(null);
 
@@ -28,10 +46,11 @@ export function FoxModel({ talking }: { talking: boolean }) {
   useLayoutEffect(() => {
     const patch = (root: THREE.Object3D | undefined) => {
       if (!root) return;
-      root.traverse((obj: any) => {
+      root.traverse((obj: THREE.Object3D) => {
         obj.frustumCulled = false;
-        if (obj.isMesh && obj.material) {
-          const mats = Array.isArray(obj.material) ? obj.material : [obj.material];
+        if ((obj as THREE.Mesh).isMesh) {
+          const mesh = obj as THREE.Mesh;
+          const mats = Array.isArray(mesh.material) ? mesh.material : [mesh.material];
           mats.forEach((m) => {
             if (m) {
               m.side = THREE.DoubleSide;
@@ -45,6 +64,8 @@ export function FoxModel({ talking }: { talking: boolean }) {
     };
     patch(idleScene);
     patch(talkScene);
+    patch(danceScene);
+    patch(jumpScene);
 
     if (idleScene && !idleMixerRef.current) {
       idleMixerRef.current = new THREE.AnimationMixer(idleScene);
@@ -67,7 +88,29 @@ export function FoxModel({ talking }: { talking: boolean }) {
         talkActionRef.current.paused = true;
       }
     }
-  }, [idleScene, talkScene, idleGltf, talkGltf]);
+    if (danceScene && !danceMixerRef.current) {
+      danceMixerRef.current = new THREE.AnimationMixer(danceScene);
+      const clip = (danceGltf?.animations?.[0] as THREE.AnimationClip | undefined);
+      if (clip) {
+        danceActionRef.current = danceMixerRef.current.clipAction(clip);
+        danceActionRef.current.setLoop(THREE.LoopOnce, 1);
+        danceActionRef.current.clampWhenFinished = true;
+        danceActionRef.current.enabled = false;
+        danceActionRef.current.paused = true;
+      }
+    }
+    if (jumpScene && !jumpMixerRef.current) {
+      jumpMixerRef.current = new THREE.AnimationMixer(jumpScene);
+      const clip = (jumpGltf?.animations?.[0] as THREE.AnimationClip | undefined);
+      if (clip) {
+        jumpActionRef.current = jumpMixerRef.current.clipAction(clip);
+        jumpActionRef.current.setLoop(THREE.LoopOnce, 1);
+        jumpActionRef.current.clampWhenFinished = true;
+        jumpActionRef.current.enabled = false;
+        jumpActionRef.current.paused = true;
+      }
+    }
+  }, [idleScene, talkScene, danceScene, jumpScene, idleGltf, talkGltf, danceGltf, jumpGltf]);
 
   // Update mixers every frame
   useEffect(() => {
@@ -77,6 +120,8 @@ export function FoxModel({ talking }: { talking: boolean }) {
       const d = clock.getDelta();
       idleMixerRef.current?.update(d);
       talkMixerRef.current?.update(d);
+      danceMixerRef.current?.update(d);
+      jumpMixerRef.current?.update(d);
       raf = requestAnimationFrame(tick);
     };
     raf = requestAnimationFrame(tick);
@@ -85,12 +130,21 @@ export function FoxModel({ talking }: { talking: boolean }) {
 
   // Toggle animation with pre-warm and opacity fade between rigs
   useEffect(() => {
+    if (animationCue) {
+      if (fadeRaf.current) cancelAnimationFrame(fadeRaf.current);
+      return;
+    }
+
     const idleAct = idleActionRef.current;
     const talkAct = talkActionRef.current;
     // cancel any in flight fade
     if (fadeRaf.current) cancelAnimationFrame(fadeRaf.current);
 
     if (talking) {
+      setAlphaDance(0);
+      setAlphaJump(0);
+      danceActionRef.current?.stop();
+      jumpActionRef.current?.stop();
       // Prepare talk before fade in
       if (talkAct && talkMixerRef.current) {
         try {
@@ -119,17 +173,14 @@ export function FoxModel({ talking }: { talking: boolean }) {
         setAlphaTalk(fromTalk + (1 - fromTalk) * p);
         if (p < 1) {
           fadeRaf.current = requestAnimationFrame(step);
-        } else {
-          // finalize
-          setActive("talk");
-          if (idleAct) {
-            idleAct.paused = true;
-            idleAct.enabled = false;
-          }
+        } else if (idleAct) {
+          idleAct.paused = true;
+          idleAct.enabled = false;
         }
       };
       fadeRaf.current = requestAnimationFrame(step);
     } else {
+      setAlphaTalk(0);
       // Prepare idle before fade in
       if (idleAct && idleMixerRef.current) {
         try {
@@ -157,25 +208,92 @@ export function FoxModel({ talking }: { talking: boolean }) {
         setAlphaTalk(fromTalk + (0 - fromTalk) * p);
         if (p < 1) {
           fadeRaf.current = requestAnimationFrame(step);
-        } else {
-          setActive("idle");
-          if (talkAct) {
-            talkAct.paused = true;
-            talkAct.enabled = false;
-          }
+        } else if (talkAct) {
+          talkAct.paused = true;
+          talkAct.enabled = false;
         }
       };
       fadeRaf.current = requestAnimationFrame(step);
     }
-  }, [talking]);
+  }, [talking, animationCue, alphaIdle, alphaTalk]);
+
+  // Handle one-shot cues such as dance or jump
+  useEffect(() => {
+    if (!animationCue) return;
+
+    const isDance = animationCue === "dance";
+    const actionRef = isDance ? danceActionRef.current : jumpActionRef.current;
+    const mixer = isDance ? danceMixerRef.current : jumpMixerRef.current;
+
+    if (!actionRef || !mixer) return;
+
+    // Stop other animations
+    if (talkActionRef.current) {
+      talkActionRef.current.stop();
+      talkActionRef.current.enabled = false;
+      talkActionRef.current.paused = true;
+    }
+    setAlphaTalk(0);
+
+    if (isDance) {
+      if (jumpActionRef.current) {
+        jumpActionRef.current.stop();
+        jumpActionRef.current.enabled = false;
+        jumpActionRef.current.paused = true;
+      }
+      setAlphaJump(0);
+    } else {
+      if (danceActionRef.current) {
+        danceActionRef.current.stop();
+        danceActionRef.current.enabled = false;
+        danceActionRef.current.paused = true;
+      }
+      setAlphaDance(0);
+    }
+
+    setAlphaIdle(0);
+    setAlphaDance(isDance ? 1 : 0);
+    setAlphaJump(isDance ? 0 : 1);
+
+    actionRef.enabled = true;
+    actionRef.reset();
+    actionRef.paused = false;
+    actionRef.play();
+
+    const handleFinished = (_event: THREE.Event) => {
+      setAlphaDance(0);
+      setAlphaJump(0);
+      setAlphaTalk(0);
+      setAlphaIdle(1);
+      actionRef.stop();
+      actionRef.enabled = false;
+      actionRef.paused = true;
+      if (idleActionRef.current) {
+        idleActionRef.current.reset();
+        idleActionRef.current.enabled = true;
+        idleActionRef.current.paused = false;
+        idleActionRef.current.play();
+      }
+      mixer.removeEventListener("finished", handleFinished);
+      onAnimationCueComplete?.();
+    };
+
+    mixer.removeEventListener("finished", handleFinished);
+    mixer.addEventListener("finished", handleFinished);
+
+    return () => {
+      mixer.removeEventListener("finished", handleFinished);
+    };
+  }, [animationCue, onAnimationCueComplete]);
 
   // Apply alpha to materials
   useEffect(() => {
     const setOpacity = (root: THREE.Object3D | null, val: number) => {
       if (!root) return;
-      root.traverse((o: any) => {
-        if (o.isMesh && o.material) {
-          const mats = Array.isArray(o.material) ? o.material : [o.material];
+      root.traverse((obj: THREE.Object3D) => {
+        if ((obj as THREE.Mesh).isMesh) {
+          const mesh = obj as THREE.Mesh;
+          const mats = Array.isArray(mesh.material) ? mesh.material : [mesh.material];
           for (const m of mats) {
             if (!m) continue;
             m.transparent = true;
@@ -188,7 +306,9 @@ export function FoxModel({ talking }: { talking: boolean }) {
     };
     setOpacity(idleGroupRef.current, ready ? alphaIdle : 0);
     setOpacity(talkGroupRef.current, ready ? alphaTalk : 0);
-  }, [alphaIdle, alphaTalk, ready]);
+    setOpacity(danceGroupRef.current, ready ? alphaDance : 0);
+    setOpacity(jumpGroupRef.current, ready ? alphaJump : 0);
+  }, [alphaIdle, alphaTalk, alphaDance, alphaJump, ready]);
 
   // Scale to consistent height and align both models: bottom on grid, centered in X/Z
   useLayoutEffect(() => {
@@ -203,13 +323,14 @@ export function FoxModel({ talking }: { talking: boolean }) {
         const tmp = new THREE.Box3();
         const mat = new THREE.Matrix4();
         root.updateWorldMatrix(true, true);
-        root.traverse((node: any) => {
-          if (node.isMesh && node.geometry) {
-            if (!node.geometry.boundingBox) node.geometry.computeBoundingBox();
-            const bb = node.geometry.boundingBox as THREE.Box3 | null;
+        root.traverse((node: THREE.Object3D) => {
+          if ((node as THREE.Mesh).isMesh) {
+            const mesh = node as THREE.Mesh;
+            if (!mesh.geometry.boundingBox) mesh.geometry.computeBoundingBox();
+            const bb = mesh.geometry.boundingBox as THREE.Box3 | null;
             if (bb) {
               tmp.copy(bb);
-              mat.copy(node.matrixWorld);
+              mat.copy(mesh.matrixWorld);
               tmp.applyMatrix4(mat);
               worldBox.union(tmp);
             }
@@ -223,9 +344,10 @@ export function FoxModel({ talking }: { talking: boolean }) {
         let maxX = -Infinity, maxY = -Infinity, maxZ = -Infinity;
         let count = 0;
         root.updateWorldMatrix(true, true);
-        root.traverse((node: any) => {
-          if (node.isSkinnedMesh && node.skeleton) {
-            const bones = node.skeleton.bones as THREE.Bone[];
+        root.traverse((node: THREE.Object3D) => {
+          if ((node as THREE.SkinnedMesh).isSkinnedMesh) {
+            const skinned = node as THREE.SkinnedMesh;
+            const bones = skinned.skeleton.bones as THREE.Bone[];
             for (const b of bones) {
               const p = new THREE.Vector3();
               b.getWorldPosition(p);
@@ -257,6 +379,8 @@ export function FoxModel({ talking }: { talking: boolean }) {
       }
       if (idleGroupRef.current) idleGroupRef.current.scale.setScalar(s);
       if (talkGroupRef.current) talkGroupRef.current.scale.setScalar(s);
+      if (danceGroupRef.current) danceGroupRef.current.scale.setScalar(s);
+      if (jumpGroupRef.current) jumpGroupRef.current.scale.setScalar(s);
 
       // Next frame, compute bounds of each GROUP (post-scale) and align to grid and center X/Z.
       // Also do a second pass to correct the height exactly to desiredHeight in world space.
@@ -314,6 +438,8 @@ export function FoxModel({ talking }: { talking: boolean }) {
         };
         align(idleGroupRef.current);
         align(talkGroupRef.current);
+        align(danceGroupRef.current);
+        align(jumpGroupRef.current);
         setReady(true);
       });
     } catch {}
@@ -326,6 +452,12 @@ export function FoxModel({ talking }: { talking: boolean }) {
       </group>
       <group ref={talkGroupRef} visible={ready && alphaTalk > 0.02}>
         {talkScene ? <primitive object={talkScene} /> : null}
+      </group>
+      <group ref={danceGroupRef} visible={ready && alphaDance > 0.02}>
+        {danceScene ? <primitive object={danceScene} /> : null}
+      </group>
+      <group ref={jumpGroupRef} visible={ready && alphaJump > 0.02}>
+        {jumpScene ? <primitive object={jumpScene} /> : null}
       </group>
     </group>
   );

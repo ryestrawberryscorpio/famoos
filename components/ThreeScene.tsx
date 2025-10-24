@@ -46,17 +46,23 @@ function BackgroundLayer({ bg, color, imageUrl }: { bg: SceneBackground; color?:
   return null;
 }
 
+interface ThreeSceneProps {
+  talking: boolean;
+  bg: SceneBackground;
+  customColor?: string;
+  backgroundImageUrl?: string;
+  animationCue?: "dance" | "jump" | null;
+  onAnimationCueComplete?: () => void;
+}
+
 export function ThreeScene({
   talking,
   bg,
   customColor,
   backgroundImageUrl,
-}: {
-  talking: boolean;
-  bg: SceneBackground;
-  customColor?: string;
-  backgroundImageUrl?: string;
-}) {
+  animationCue,
+  onAnimationCueComplete,
+}: ThreeSceneProps) {
   return (
     <Canvas camera={{ position: [0, 1.4, 4], fov: 45 }}>
       <BackgroundLayer bg={bg} color={customColor} imageUrl={backgroundImageUrl} />
@@ -64,7 +70,7 @@ export function ThreeScene({
       <ambientLight intensity={0.8} />
       <directionalLight position={[5, 8, 5]} intensity={1.3} />
       <Suspense fallback={null}>
-        <FoxModel talking={talking} />
+        <FoxModel talking={talking} animationCue={animationCue} onAnimationCueComplete={onAnimationCueComplete} />
         <Environment preset="city" />
       </Suspense>
       <OrbitControls enableDamping enablePan={false} minDistance={2} maxDistance={8} target={[0, 1, 0]} />
